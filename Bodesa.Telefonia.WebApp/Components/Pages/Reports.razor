@@ -1,0 +1,46 @@
+﻿@page "/Reports"
+@rendermode InteractiveServer
+@inject ILogger<Reports> Logger
+@inject IWebHostEnvironment Environment
+
+<h3>Reporte</h3>
+<div class="modal-content">
+    <div class="mb-3">
+       
+ 
+        <InputFile OnChange="LoadFile" multiple/>
+    </div>
+</div>
+
+
+
+
+@code {
+    private string pathFile = string.Empty;
+    private IBrowserFile browserFile;
+    private List<IBrowserFile> files = new();
+
+    private async void LoadFile(InputFileChangeEventArgs e)
+    {
+        var isLoading = true;
+        files.Clear();
+
+        foreach (var file in e.GetMultipleFiles(1))
+        {
+            try
+            {              
+                files.Add(file);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("error: ", file.Name, ex.Message);
+
+            }
+        }
+    }
+
+    private void SearchFile()
+    {
+        
+    }
+}

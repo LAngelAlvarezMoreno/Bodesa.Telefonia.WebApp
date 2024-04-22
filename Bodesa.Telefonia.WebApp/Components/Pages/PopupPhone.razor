@@ -1,0 +1,172 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@using Bodesa.Telefonia.WebApp.Extentions
+@rendermode InteractiveServer
+@inject IServices.IPhoneNumberService phoneNumberService
+@inject IJSRuntime jsruntime
+@inherits ComponentBase
+
+<style>
+    .popup {
+        display: block;
+        position: fixed;
+        z-index: 999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .popup-content {
+        background-color: #fefefe;
+        margin: 1% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 60%;
+    }
+
+    .popup-header,
+    .popup-footer {
+        padding: 5px 10px;
+        background-color: #f5f5f5;
+    }
+
+    .popup-title {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    .popup-body {
+        padding: 5px 10px;
+    }
+
+    .close {
+        color: black;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+        .close:hover,
+        .close:focus {
+            color: red;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+</style>
+
+
+@if (ShowDialog)
+{
+    <div class="popup">
+        <div class="popup-content">
+            <button type="button" class="close" @onclick="CloseDialog">
+                <span>&times;</span>
+            </button>
+            <div class="popup-header">
+                <h5 class="modal-title">@title</h5>
+
+            </div>
+            <div class="popup-body">
+
+               <div mb-3> 
+                   <label>Número de Telefono</label>
+                    @if (!string.IsNullOrEmpty(Type) && Type.Equals("NEW"))
+                    {
+                        <input class="form-control" type="text" maxlength="10" @bind="Phone.PhoneNumber"/>
+                    }
+                    else
+                    {
+                        <input class="form-control" type="text" @bind="Phone.PhoneNumber" readonly />
+                    }
+                  
+               </div>
+
+                <div mb-3>
+                    <label class="form-control">Region</label>
+                    <input class="form-control" maxlength="1" type="number" @bind="Phone.Region" />
+                </div>
+
+                <div mb-3>
+                    <label class="form-control">Estatus</label>
+                    <input class="form-control" type="text" @bind="Phone.Status"/>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" @onclick="Save">Aceptar</button>
+                <button type="button" class="btn btn-secondary" style="background: red" @onclick="CloseDialog">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+}
+
+
+@code
+{
+    private string title = "Datos Telefono";
+    [Parameter]
+    public Entities.cnf_PhoneNumber Phone { get; set; }
+
+    [Parameter]
+    public bool ShowDialog { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ShowDialogChanged { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = string.Empty;
+
+    private async Task CloseDialog()
+    {
+
+        ShowDialog = false;
+        await ShowDialogChanged.InvokeAsync(ShowDialog);
+    }
+
+    private async Task Save()
+    {
+        if (Type.Equals("NEW") && string.IsNullOrEmpty(Phone.PhoneNumber))
+        {
+            await jsruntime.ToastrInfo("Ingresa el numero");
+            return;
+        }
+
+        if (Phone.Region == 0)
+        {
+            await jsruntime.ToastrInfo("region no puede ser 0");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Phone.Status))
+        {
+            await jsruntime.ToastrInfo("ingresa el status");
+            return;
+        }
+
+
+        string savePhone = string.Empty;
+        if (Type.Equals("NEW"))
+        {
+            savePhone = await phoneNumberService.AddPhoneNumber(Phone);
+        }
+        else
+        {
+            savePhone = await phoneNumberService.UpdatePhoneNumber(Phone);
+        }
+
+        if (!string.IsNullOrEmpty(savePhone))
+        {
+            await jsruntime.ToastrError($"Error al guardar: {savePhone}");            
+        }
+        else
+        {
+            await jsruntime.ToastrSuccess("registro guardado correctamente");
+            await CloseDialog();
+        }
+    }
+}

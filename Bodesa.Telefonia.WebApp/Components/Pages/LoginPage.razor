@@ -1,0 +1,111 @@
+﻿@page "/LoginPage"
+
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+@inject GlobalPropertiesClass globalClass
+
+<PageTitle>Login</PageTitle>
+
+<style>
+	
+</style>
+
+<div style="display: @showHideLoginData">
+	<div role="document">
+		<div class="modal-content">			
+			<div class="modal-body">
+				<div class="mb-3">
+					<label for="loginEmail" class="form-label">Correo</label>
+					<input type="email" class="form-control" id="loginEmail"
+						   placeholder="eMail" autocomplete="off" required @bind-value="user" />
+				</div>
+				<div class="mb-3">
+					<label for="loginPassword" class="form-label">Contraseña</label>
+					<input type="password" class="form-control" id="loginPassword" required @bind-value="password" placeholder="password"/>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" @onclick="Loged">iniciar sesion</button>
+				@* <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="Close">Close</button> *@
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	private bool show, display, loggedIn;
+	private string? user, password, showHideLoginData;
+
+	protected string? disabled { get; set; } = null;
+
+
+
+	public string? GetUserName()
+	{
+		return loggedIn ? user : null;
+	}
+
+	public async Task OpenLogin()
+	{
+		display = true;
+		await Task.Delay(100);
+		show = true;
+	}
+
+	public async Task Logout()
+	{
+		user = null;
+		loggedIn = false;
+		//await LocalStorage.RemoveAsync("user");
+	}
+
+	private async Task Loged()
+	{
+		globalClass.LoginLogout = "LogOut";
+		globalClass.ShowButtonLogin = "none";
+		globalClass.ShowButtonLogout = "block";
+
+		if (!string.IsNullOrEmpty(user) && !string.IsNullOrWhiteSpace(password))
+		{
+			// NOTE: Check password here!!
+			await Close();
+			loggedIn = true;
+			password = null;
+			//await LocalStorage.SaveStringAsync("user", user);
+		}
+
+		StateHasChanged();
+	}
+
+	private async Task Close()
+	{
+		show = false;
+		await Task.Delay(500);
+		display = false;
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await base.OnInitializedAsync();
+		//user = await LocalStorage.GetStringAsync("user");
+		loggedIn = !string.IsNullOrEmpty(user);
+
+		
+
+		if (!string.IsNullOrEmpty(user))
+		{
+			showHideLoginData = "none";
+			StateHasChanged();
+		}
+		else
+		{
+			showHideLoginData = "block";
+			StateHasChanged();
+		}
+	}
+
+	private void GoToAccount()
+	{
+		Nav.NavigateTo("/");
+	}
+}

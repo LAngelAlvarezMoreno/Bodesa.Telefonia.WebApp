@@ -1,0 +1,240 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inherits ComponentBase
+@inject IServices.ICustomerService customerService
+@inject IJSRuntime jsruntime
+@using Microsoft.AspNetCore.Components.Web
+@using Bodesa.Telefonia.WebApp.Extentions
+
+
+<PageTitle>Home</PageTitle>
+<style>
+
+    .tablas {
+        border: solid 0.5px #1A06AB;
+        background-color: #f3f3f3;
+    }
+</style>
+
+<div style="display : @showDataSearch ? block : none">
+    <div role="document">
+        <h3><label>Buscar Información</label></h3>
+        <div>
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Linea telefónica</label>
+                        <input class="form-control" autocomplete="off" @bind="phoneNumber" />
+                    </div>
+
+                    <div>
+                        <div class="mb-3">
+                            <label class="form-label">Número de nomina</label>
+                            <input class="form-control" autocomplete="off" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="Add">
+                        Nuevo
+                    </button>
+                    <button type="button"
+                            class="btn btn-success"
+                            @onclick="SearchData">
+                        Buscar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div style="display : @show ? block : none" role="status">
+    @if (data != null && data.Any())
+    {
+        <div class="modal-header">
+            <button type="button" class="btn btn-close"
+                    @onclick=CloseResult></button>
+        </div>
+        <div class="col">
+            @foreach (var item in data)
+            {
+                if (item != null)
+                {
+                    <table class="table tablas">
+                        <tbody>
+
+                            <tr>
+                                <th>Número de teléfono</th>
+                                <td>@item.PhoneNumber</td>
+                            </tr>
+
+                            <tr>
+                                <th>Nombre</th>
+                                <td>@item.Name</td>
+                            </tr>
+                            <tr>
+                                <th>Departamento</th>
+                                <td>@item.Department</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <stackpanel orientation="horizontal">
+                                <button type="button" class="btn btn-outline-success" style="background: #3468F6"
+                                        @onclick="args => Edit(item, args)">
+                                    Editar
+                                </button>
+                                <button type="button" class="btn btn-outline-success" style="background: red"
+                                        @onclick="args => Delete(item, args)">
+
+                                    Eliminar
+                                </button>
+                            </stackpanel>
+
+                        </tfoot>
+                    </table>
+                }
+            }
+        </div>
+    }
+</div>
+
+<Popup ShowDialog="@popUpCustomerEdit"
+       ShowDialogChanged="@(value => popUpCustomerEdit = value)"
+       Customer="@CustomerToEdit"
+       Type="@Type">
+
+</Popup>
+
+
+
+@code {
+    private string phoneNumber { get; set; }
+    private bool popUpCustomerEdit { get; set; }
+    private bool show { get; set; }
+    private bool showDataSearch { get; set; } = true;
+    private List<Entities.cnf_CustomerData> data = new();
+    public Entities.cnf_CustomerData CustomerToEdit { get; set; }
+    private string Type { get; set; }
+    private Entities.cnf_CustomerData addCustomer { get; set; } = new() { PayrollNumber = string.Empty, CECOS = string.Empty, Name = string.Empty, LastName = string.Empty, LeaderShip = string.Empty, Department = string.Empty };
+
+    private Popup popup;
+
+    private async Task Add()
+    {
+        Type = "NEW";
+        popUpCustomerEdit = true;
+        CustomerToEdit = addCustomer;
+        CloseResult();
+        StateHasChanged();
+
+    }
+
+    private void Edit(Entities.cnf_CustomerData customer, MouseEventArgs args)
+    {
+        //popup.ShowPopup(customer);
+        //popup.ShowModal();
+        Type = "EDIT";
+        popUpCustomerEdit = true;
+        CustomerToEdit = customer;
+        CloseResult();
+        StateHasChanged();
+    }
+
+    private async Task SearchData()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(phoneNumber))
+            {
+                var result = await customerService.GetCustomerByPhoneNumber(phoneNumber);
+                if (result == null)
+                {
+                    await jsruntime.ToastrError("Error al obtener información.");
+                    return;
+                }
+
+                data = new();
+                data.Add(result);
+                StateHasChanged();
+                return;
+            }
+            else
+            {
+                var getData = await customerService.GetAllCustomersAsync();
+                if (getData == null)
+                {
+                    await jsruntime.ToastrError("Error al obtener información.");
+                    return;
+                }
+                show = true;
+                showDataSearch = false;
+                StateHasChanged();
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            await jsruntime.ToastrError(ex.Message);
+            return;
+        }
+    }
+
+    private async Task Delete(Entities.cnf_CustomerData customer, MouseEventArgs args)
+    {
+        try
+        {
+            var deleteCustomer = await customerService.DeleteCustomer(customer.PayrollNumber);
+
+            if (!string.IsNullOrEmpty(deleteCustomer))
+            {
+                await jsruntime.ToastrError(deleteCustomer);
+                return;
+            }
+            else
+            {
+                await jsruntime.ToastrSuccess("Registro eliminado correctamente.");
+                CloseResult();
+            }
+        }
+        catch (Exception ex)
+        {
+            await jsruntime.ToastrError($"Error: {ex.Message}");
+        }
+    }
+
+    public void ClosePopup()
+    {
+        popUpCustomerEdit = false;
+        StateHasChanged();
+    }
+
+    private void CloseResult()
+    {
+        show = false;
+        data = new();
+        showDataSearch = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        popUpCustomerEdit = false;
+
+        if (data == null || !data.Any())
+        {
+            show = false;
+        }
+
+        StateHasChanged();
+    }
+}
+

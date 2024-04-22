@@ -1,0 +1,173 @@
+﻿@page "/PhoneNumber"
+@rendermode InteractiveServer
+@inject IServices.IPhoneNumberService phoneService
+@using Bodesa.Telefonia.WebApp.Extentions
+@inject IJSRuntime jsruntime
+
+<PageTitle>Números Telefonicos</PageTitle>
+
+<style>
+
+    .tablas {
+        border: solid 0.5px #1A06AB;
+        background-color: #f3f3f3;
+    }
+</style>
+
+<div style="display:  block ">
+    <div role="document">
+        <h3><label>Buscar Información</label></h3>
+        <div class="modal-content">
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Número Telefónico</label>
+                    <input type="text" class="form-control" autocomplete="off" @bind="phoneNumber" />
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="Add">
+                    Nuevo
+                </button>
+
+                <button class="btn btn-success"
+                        type="button"
+                        @onclick="Search">
+                    Buscar
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div style="display: @shearchResult">
+    @if (dataResult != null && dataResult.Any())
+    {
+        <div class="modal-header">
+            <button type="button" class="btn btn-close" @onclick="CloseResult"></button>
+        </div>
+        <div class="col">
+            @foreach (var phone in dataResult)
+            {
+                if (phone != null)
+                {
+                    <table class="table tablas">
+                        <tbody>
+                            <tr>
+                                <th>Número de Telefono</th>
+                                <td>@phone.PhoneNumber</td>
+                            </tr>
+                            <tr>
+                                <th>Region</th>
+                                <td>@phone.Region</td>
+                            </tr>
+                            <tr>
+                                <th>Estatus</th>
+                                <td>@phone.Status</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <stacpanel orientation="horizontal">
+                                <button type="button" class="btn btn-outline-success" style="background: #3468F6"
+                                        @onclick="args => Edit(phone, args)">
+                                    Editar
+                                </button>
+                                <button type="button" class="btn btn-outline-success" style="background: red"
+                                        @onclick="args => Delete(phone, args)">
+
+                                    Eliminar
+                                </button>
+                            </stacpanel>
+                        </tfoot>
+                    </table>
+                }
+            }
+        </div>
+    }
+</div>
+
+<PopupPhone ShowDialog="@ShowPopup"
+            ShowDialogChanged="@(value => ShowPopup = value)"
+            Type="@Type"
+            Phone="@Phone">
+
+</PopupPhone>
+
+
+@code {
+    private bool shearchResult { get; set; }
+    private PopupPhone popup;
+    private bool ShowPopup { get; set; }
+    public List<Entities.cnf_PhoneNumber> dataResult { get; set; }
+    public Entities.cnf_PhoneNumber Phone { get; set; } = new();
+
+    private string phoneNumber;
+    private string Type = string.Empty;
+
+    private async Task Edit(Entities.cnf_PhoneNumber phone, MouseEventArgs args)
+    {
+        Type = "EDIT";
+        this.Phone = phone;
+        ShowPopup = true;
+        CloseResult();
+    }
+
+    private async Task Add()
+    {
+        Phone = new();
+        ShowPopup = true;
+        Type = "NEW";
+        StateHasChanged();
+    }
+
+    private async Task Delete(Entities.cnf_PhoneNumber phone, MouseEventArgs args)
+    {
+        var deletePhone = await phoneService.DeletePhoneNumber(phone.PhoneNumber);
+        if (!string.IsNullOrEmpty(deletePhone))
+        {
+            await jsruntime.ToastrError($"Error al intentar eliminar: {deletePhone}");
+            return;
+        }
+
+        await jsruntime.ToastrSuccess("Registro eliminado correctamente.");
+        CloseResult();
+    }
+
+    private async Task Search()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(phoneNumber))
+            {
+                var getAll = await phoneService.GetAllPhoneNumbers();
+                dataResult = new List<Entities.cnf_PhoneNumber>(getAll);
+            }
+            else
+            {
+                dataResult = new();
+                dataResult.Add(await phoneService.GetPhoneNumber(phoneNumber));
+            }
+
+            shearchResult = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await jsruntime.ToastrError(ex.Message);
+            return;
+        }
+    }
+
+    private void CloseResult()
+    {
+
+        dataResult = new();
+        shearchResult = false;
+        StateHasChanged();
+
+    }
+}

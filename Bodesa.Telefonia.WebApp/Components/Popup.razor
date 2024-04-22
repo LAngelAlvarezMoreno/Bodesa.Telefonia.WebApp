@@ -1,0 +1,222 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@using Bodesa.Telefonia.WebApp.Extentions
+@rendermode InteractiveServer
+@inject IServices.ICustomerService customerService
+@inject IJSRuntime jsruntime
+@inherits ComponentBase
+
+
+<style>
+    .popup {
+        display: block;
+        position: fixed;
+        z-index: 999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .popup-content {
+        background-color: #fefefe;
+        margin: 1% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 60%;
+    }
+
+    .popup-header,
+    .popup-footer {
+        padding: 5px 10px;
+        background-color: #f5f5f5;
+    }
+
+    .popup-title {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    .popup-body {
+        padding: 5px 10px;
+    }
+
+    .close {
+        color: black;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+        .close:hover,
+        .close:focus {
+            color: red;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+</style>
+
+
+@if (ShowDialog)
+{
+    <div class="popup">
+        <div class="popup-content">
+            <button type="button" class="close" @onclick="CloseDialog">
+                <span>&times;</span>
+            </button>
+            <div class="popup-header">
+                <h5 class="modal-title">@title</h5>
+
+            </div>
+            <div class="popup-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Número de nomina</label>
+
+                    @if (!string.IsNullOrEmpty(Type) && Type.Equals("NEW"))
+                    {
+                        <input class="form-control" type="text" @bind="Customer.PayrollNumber" />
+                    }
+                    else
+                    {
+                        <input class="form-control" type="text" @bind="Customer.PayrollNumber" readonly />
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <input class="form-control" type="text" @bind="Customer.Name" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Segundo nombre</label>
+                    <input class="form-control" type="text" @bind="Customer.SecondName" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Apellido Paterno</label>
+                    <input class="form-control" type="text" @bind="Customer.LastName" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Apellido Materno</label>
+                    <input class="form-control" type="text" @bind="Customer.SecondLastName" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Número Telefonico</label>
+                    <input class="form-control" type="text" @bind="Customer.PhoneNumber" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Departamento</label>
+                    <input class="form-control" type="text" @bind="Customer.Department" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Jefatura</label>
+                    <input class="form-control" type="text" @bind="Customer.LeaderShip" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Centro de Costos</label>
+                    <input class="form-control" type="text" @bind="Customer.CECOS" />
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" @onclick="Save">Aceptar</button>
+                <button type="button" class="btn btn-secondary" style="background: red" @onclick="CloseDialog">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+}
+
+
+@code
+{
+    private string title =  "Datos cliente";
+    [Parameter]
+    public Entities.cnf_CustomerData Customer { get; set; }
+
+    [Parameter]
+    public bool ShowDialog { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ShowDialogChanged { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = string.Empty;
+
+    private async Task CloseDialog()
+    {
+
+        ShowDialog = false;
+        await ShowDialogChanged.InvokeAsync(ShowDialog);
+    }
+
+
+    private async Task Save()
+    {
+
+        if (Type.Equals("NEW") && string.IsNullOrEmpty(Customer.PayrollNumber))
+        {
+            await jsruntime.ToastrInfo("Ingresa el número de nomina.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Customer.Name))
+        {
+            await jsruntime.ToastrInfo("Ingresa el Nombre.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Customer.LastName))
+        {
+            await jsruntime.ToastrInfo("Ingresa el Apellido.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Customer.Department))
+        {
+            await jsruntime.ToastrInfo("Ingresa el Departamento.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Customer.CECOS))
+        {
+            await jsruntime.ToastrInfo("Ingresa el Centro de Costos");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Customer.PhoneNumber))
+        {
+            await jsruntime.ToastrInfo("Ingresa el Número Telefónico");
+            return;
+        }
+
+        string saveCustomer = string.Empty;
+        if (Type.Equals("NEW"))
+        {
+            saveCustomer = await customerService.AddCustomer(Customer);
+        }
+        else
+        {
+            saveCustomer = await customerService.SaveCustomer(Customer);
+        }
+
+        if (!string.IsNullOrEmpty(saveCustomer))
+        {
+            await jsruntime.ToastrError($"Ocurrió un error al guardar: {saveCustomer}.");
+        }
+        else
+        {
+            await jsruntime.ToastrSuccess("Registro Guardado Correctamente.");
+            await CloseDialog();
+        }
+    }
+}
